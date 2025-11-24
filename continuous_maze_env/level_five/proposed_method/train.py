@@ -324,9 +324,9 @@ def adversary_reward_qensemble(
 class TrainingConfig:
     """Container for hyper-parameters required by the training loop."""
 
-    level_name: str = "level_two"
+    level_name: str = "level_five"
     max_steps: int = 100
-    outer_iterations: int = 1006
+    outer_iterations: int = 1506
     adversary_episodes_per_iter: int = 10
     protagonist_episodes_per_iter: int = 10
     learning_rate: float = 3e-4
@@ -432,7 +432,7 @@ class AdvSacTrainer:
     def _ensure_model_dirs() -> None:
         """Create model output folders ahead of checkpointing."""
 
-        for directory in ("models", "level_two_models"):
+        for directory in ("models", "level_five_models"):
             os.makedirs(directory, exist_ok=True)
 
     def _build_envs(self) -> None:
@@ -551,10 +551,10 @@ class AdvSacTrainer:
 
             if iteration_idx % self.config.checkpoint_period == 0:
                 self.adversary.save(
-                    save_path=f"level_two_models/adversary_sac_{iteration_idx}"
+                    save_path=f"level_five_models/adversary_sac_{iteration_idx}"
                 )
                 self.protagonist.save(
-                    save_path=f"level_two_models/protagonist_sac_{iteration_idx}"
+                    save_path=f"level_five_models/protagonist_sac_{iteration_idx}"
                 )
 
     def _train_adversary_iteration(

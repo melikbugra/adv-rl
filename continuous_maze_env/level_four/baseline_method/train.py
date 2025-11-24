@@ -115,54 +115,14 @@ class EpisodeCSVLogger:
             tqdm.tqdm.write(f"[CSV] log error: {exc}")
 
 
-class RunningNorm:
-    """Compute a streaming z-score with exponential moving averages.
-
-    Parameters
-    ----------
-    decay : float, optional
-            Decay factor for the exponential moving averages, by default ``0.99``.
-    eps : float, optional
-            Numerical guard added to the denominator, by default ``1e-6``.
-    """
-
-    def __init__(self, decay: float = 0.99, eps: float = 1e-6):
-        self.m = 0.0
-        self.v = 1.0
-        self.ready = False
-        self.decay = decay
-        self.eps = eps
-
-    def update(self, value: float) -> None:
-        """Update the running mean/variance with a new measurement."""
-
-        value = float(value)
-        if not self.ready:
-            self.m = value
-            self.v = 1.0
-            self.ready = True
-            return
-        self.m = self.decay * self.m + (1.0 - self.decay) * value
-        self.v = self.decay * self.v + (1.0 - self.decay) * (value - self.m) ** 2
-
-    def z(self, value: float) -> float:
-        """Return the z-score of ``value`` under the current statistics."""
-
-        return (float(value) - self.m) / (self.v**0.5 + self.eps)
-
-
-VALUE_STATS = RunningNorm(decay=0.99)
-SIGMA_STATS = RunningNorm(decay=0.995)
-
-
 @torch.no_grad()
-def estimate_soft_value_and_uncertainty(
+def estimate_protagonist_soft_value(
     state_tensor: torch.Tensor,
     protagonist: SAC,
     sample_count: int = 8,
     use_target: bool = True,
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Estimate soft value and critic ensemble dispersion for a batch.
+) -> torch.Tensor:
+    """Estimate the protagonist's soft value for a batch of observations.
 
     Parameters
     ----------
@@ -172,13 +132,13 @@ def estimate_soft_value_and_uncertainty(
             The protagonist agent that provides actor/critic networks.
     sample_count : int, optional
             Number of action reparameterisation samples, by default ``8``.
-    use_target : bool, optional
+        use_target : bool, optional
             Use target critics when available, by default ``True``.
 
-    Returns
-    -------
-    tuple(torch.Tensor, torch.Tensor, torch.Tensor)
-            ``(V_hat, sigma_Q, mean_Q)`` each shaped ``[B, 1]``.
+        Returns
+        -------
+        torch.Tensor
+            Estimated soft value ``V_hat`` shaped ``[B, 1]``.
     """
 
     state_tensor = state_tensor.to(protagonist.device)
@@ -217,21 +177,15 @@ def estimate_soft_value_and_uncertainty(
 
     try:
         if use_target:
-            _, _, _, _, _, target_mean, target_std = protagonist.agent.net(
+            _, _, _, _, _, target_mean, _ = protagonist.agent.net(
                 state=repeated_states, action=repeated_actions, target_pass=True
             )
             q_mean = target_mean.reshape(sample_count, batch_size, 1)
-            q_std = (
-                target_std if target_std is not None else torch.zeros_like(target_mean)
-            ).reshape(sample_count, batch_size, 1)
         else:
-            _, _, online_mean, online_std, _, _, _ = protagonist.agent.net(
+            _, _, online_mean, _, _, _, _ = protagonist.agent.net(
                 state=repeated_states, action=repeated_actions, critic_pass=True
             )
             q_mean = online_mean.reshape(sample_count, batch_size, 1)
-            q_std = (
-                online_std if online_std is not None else torch.zeros_like(online_mean)
-            ).reshape(sample_count, batch_size, 1)
     except Exception:
         if use_target:
             _, _, _, tgt_q1, tgt_q2 = protagonist.agent.net(
@@ -246,25 +200,20 @@ def estimate_soft_value_and_uncertainty(
             )
             q_stack = torch.cat([q1, q2], dim=1).reshape(sample_count, batch_size, 2)
         q_mean = q_stack.mean(dim=2, keepdim=True)
-        q_std = q_stack.std(dim=2, keepdim=True, unbiased=False)
 
     entropy_coeff = torch.exp(protagonist.agent.log_alpha.detach())
     soft_values = q_mean - entropy_coeff * log_prob
-    v_hat = soft_values.mean(0)
-    sigma_q = q_std.mean(0)
-    q_mean_raw = q_mean.mean(0)
-    return v_hat, sigma_q, q_mean_raw
+    return soft_values.mean(0)
 
 
 @torch.no_grad()
-def adversary_reward_qensemble(
+def adversary_reward_from_value(
     next_state_np: np.ndarray,
     protagonist: SAC,
     sample_count: int = 8,
-    lambda_value: float = 0.5,
-    lambda_sigma: float = 1.0,
-) -> Tuple[float, float]:
-    """Compute the adversary reward using value suppression and uncertainty boosts.
+    scale: float = 1.0,
+) -> float:
+    """Return the paper's adversary reward ``r_A = - scale * V_P(s')``.
 
     Parameters
     ----------
@@ -273,58 +222,27 @@ def adversary_reward_qensemble(
     protagonist : SAC
             Protagonist policy that supplies critic ensembles.
     sample_count : int, optional
-            Number of Monte-Carlo samples for ``estimate_soft_value_and_uncertainty``.
-    lambda_value : float, optional
-            Scaling weight for the (negative) value term.
-    lambda_sigma : float, optional
-            Scaling weight for the positive uncertainty term.
-
-    Returns
-    -------
-    tuple(float, float)
-            ``(r_value, r_sigma)`` components before summation.
+            Number of action samples for the soft value amortisation.
+    scale : float, optional
+            Global multiplier applied to the negative value term.
     """
 
-    device = protagonist.device
     state_tensor = torch.tensor(
-        next_state_np, dtype=torch.float32, device=device
+        next_state_np, dtype=torch.float32, device=protagonist.device
     ).unsqueeze(0)
 
-    v_hat, sigma_q, mean_q = estimate_soft_value_and_uncertainty(
+    v_hat = estimate_protagonist_soft_value(
         state_tensor, protagonist, sample_count=sample_count, use_target=True
     )
-
-    v_value = float(v_hat.item())
-    sigma_value = float(sigma_q.item())
-    mean_value = float(torch.abs(mean_q).item())
-
-    cv_denom_constant = 5.0
-    denom = (mean_value * mean_value + cv_denom_constant * cv_denom_constant) ** 0.5
-    coefficient_of_variation = sigma_value / (denom + 1e-8)
-
-    VALUE_STATS.update(v_value)
-    SIGMA_STATS.update(coefficient_of_variation)
-
-    z_value = VALUE_STATS.z(v_value)
-
-    sigma_std = (SIGMA_STATS.v**0.5) + SIGMA_STATS.eps
-    sigma_margin = 0.3
-    sigma_clip = 2.5
-    positive_z = max(
-        0.0, (coefficient_of_variation - SIGMA_STATS.m) / sigma_std - sigma_margin
-    )
-    positive_z = min(positive_z, sigma_clip)
-
-    reward_value = -lambda_value * z_value
-    reward_sigma = lambda_sigma * positive_z
-    return reward_value, reward_sigma
+    protagonist_value = float(v_hat.item())
+    return -scale * protagonist_value
 
 
 @dataclass
 class TrainingConfig:
     """Container for hyper-parameters required by the training loop."""
 
-    level_name: str = "level_two"
+    level_name: str = "level_four"
     max_steps: int = 100
     outer_iterations: int = 1006
     adversary_episodes_per_iter: int = 10
@@ -337,61 +255,13 @@ class TrainingConfig:
     env_seed: int | None = None
     tau: float = 0.005
     target_entropy_scale: float = 1.0
-    num_q_heads: int = 6
-    sigma_samples: int = 8
-    base_lambda_v: float = 0.7
-    base_lambda_sigma: float = 0.25
-    value_ramp_fraction: float = 0.25
-    sigma_warmup_fraction: float = 0.25
-    sigma_decay_fraction: float = 0.25
-    sigma_min_fraction: float = 0.0
+    num_q_heads: int = 2
+    num_samples: int = 8
+    value_reward_scale: float = 1.0
     csv_path: str = "heatmap/adv_prt_endpoints.csv"
     reset_csv_on_start: bool = True
     mlflow_tracking_uri: str = "https://mlflow.melikbugraozcelik.com/"
     checkpoint_period: int = 5
-
-
-class RewardScheduler:
-    """Time-dependent weighting for the value and uncertainty components."""
-
-    def __init__(self, config: TrainingConfig):
-        self.config = config
-        total_steps_per_iter = (
-            config.adversary_episodes_per_iter + config.protagonist_episodes_per_iter
-        ) * config.max_steps
-        self.total_nominal_steps = max(
-            1, config.outer_iterations * total_steps_per_iter
-        )
-        self.value_ramp_steps = max(
-            1, int(self.total_nominal_steps * config.value_ramp_fraction)
-        )
-        self.sigma_warmup_steps = max(
-            1, int(self.total_nominal_steps * config.sigma_warmup_fraction)
-        )
-        self.sigma_decay_steps = max(
-            1, int(self.total_nominal_steps * config.sigma_decay_fraction)
-        )
-
-    def value_weight(self, total_steps: int) -> float:
-        """Smoothly ramp the negative value multiplier."""
-
-        progress = 1.0 - np.exp(-float(total_steps) / float(self.value_ramp_steps))
-        return float(self.config.base_lambda_v * progress)
-
-    def sigma_weight(self, total_steps: int, use_min_floor: bool) -> float:
-        """Schedule the uncertainty weight with optional floor protection."""
-
-        if total_steps < self.sigma_warmup_steps:
-            return float(self.config.base_lambda_sigma)
-
-        elapsed = float(total_steps - self.sigma_warmup_steps)
-        decay = np.exp(-elapsed / float(self.sigma_decay_steps))
-        if use_min_floor:
-            min_frac = self.config.sigma_min_fraction
-            return float(
-                self.config.base_lambda_sigma * (min_frac + (1.0 - min_frac) * decay)
-            )
-        return float(self.config.base_lambda_sigma * decay)
 
 
 @dataclass
@@ -402,9 +272,6 @@ class EpisodeOutcome:
     protagonist_score: float
     protagonist_success: bool
     reward_value_component: float
-    reward_sigma_component: float
-    lambda_value: float
-    lambda_sigma: float
     last_observation: np.ndarray
 
 
@@ -413,7 +280,6 @@ class AdvSacTrainer:
 
     def __init__(self, config: TrainingConfig):
         self.config = config
-        self.scheduler = RewardScheduler(config)
         self.csv_logger = EpisodeCSVLogger(
             config.csv_path, reset_on_start=config.reset_csv_on_start
         )
@@ -432,7 +298,7 @@ class AdvSacTrainer:
     def _ensure_model_dirs() -> None:
         """Create model output folders ahead of checkpointing."""
 
-        for directory in ("models", "level_two_models"):
+        for directory in ("models", "level_four_models"):
             os.makedirs(directory, exist_ok=True)
 
     def _build_envs(self) -> None:
@@ -513,7 +379,7 @@ class AdvSacTrainer:
                 "network_type": self.config.network_type,
                 "network_arch": list(self.config.network_arch),
                 "num_q_heads": self.config.num_q_heads,
-                "sigma_samples_K": self.config.sigma_samples,
+                "num_samples_K": self.config.num_samples,
                 "target_entropy": -float(self.env.action_space.shape[0])
                 * self.config.target_entropy_scale,
             },
@@ -551,10 +417,10 @@ class AdvSacTrainer:
 
             if iteration_idx % self.config.checkpoint_period == 0:
                 self.adversary.save(
-                    save_path=f"level_two_models/adversary_sac_{iteration_idx}"
+                    save_path=f"level_four_models/adversary_sac_{iteration_idx}"
                 )
                 self.protagonist.save(
-                    save_path=f"level_two_models/protagonist_sac_{iteration_idx}"
+                    save_path=f"level_four_models/protagonist_sac_{iteration_idx}"
                 )
 
     def _train_adversary_iteration(
@@ -612,33 +478,23 @@ class AdvSacTrainer:
 
         adv_score = 0.0
         value_component = 0.0
-        sigma_component = 0.0
-        lambda_value = 0.0
-        lambda_sigma = 0.0
         episode_done = False
 
         for _ in range(self.adversary_horizon):
             self.total_steps += 1
-            lambda_sigma = self.scheduler.sigma_weight(
-                self.total_steps, use_min_floor=True
-            )
-            lambda_value = self.scheduler.value_weight(self.total_steps)
 
             action_tensor = self.adversary.agent.select_action(state_tensor)
             env_action = self._to_env_action(self.adversary, action_tensor)
             next_obs, _, terminated, truncated, _ = self.env.step(env_action)
 
-            r_value, r_sigma = adversary_reward_qensemble(
+            r_value = adversary_reward_from_value(
                 next_state_np=next_obs,
                 protagonist=self.protagonist,
-                sample_count=self.config.sigma_samples,
-                lambda_value=lambda_value,
-                lambda_sigma=lambda_sigma,
+                sample_count=self.config.num_samples,
+                scale=self.config.value_reward_scale,
             )
             value_component += r_value
-            sigma_component += r_sigma
-
-            shaped_reward = r_value + r_sigma
+            shaped_reward = r_value
             if terminated:
                 shaped_reward -= 10.0
 
@@ -681,9 +537,6 @@ class AdvSacTrainer:
             protagonist_score=protagonist_score,
             protagonist_success=protagonist_success,
             reward_value_component=value_component,
-            reward_sigma_component=sigma_component,
-            lambda_value=lambda_value,
-            lambda_sigma=lambda_sigma,
             last_observation=last_obs.copy(),
         )
 
@@ -696,18 +549,11 @@ class AdvSacTrainer:
 
         adv_score = 0.0
         value_component = 0.0
-        sigma_component = 0.0
-        lambda_value = 0.0
-        lambda_sigma = 0.0
         episode_done = False
 
         # Adversary plays greedily for Ha steps to set the starting condition.
         for _ in range(self.adversary_horizon):
             self.total_steps += 1
-            lambda_sigma = self.scheduler.sigma_weight(
-                self.total_steps, use_min_floor=False
-            )
-            lambda_value = self.scheduler.value_weight(self.total_steps)
 
             action_tensor = self.adversary.agent.select_greedy_action(
                 adversary_state, eval=True
@@ -715,17 +561,14 @@ class AdvSacTrainer:
             env_action = self._to_env_action(self.adversary, action_tensor)
             next_obs, _, terminated, truncated, _ = self.env.step(env_action)
 
-            r_value, r_sigma = adversary_reward_qensemble(
+            r_value = adversary_reward_from_value(
                 next_state_np=next_obs,
                 protagonist=self.protagonist,
-                sample_count=self.config.sigma_samples,
-                lambda_value=lambda_value,
-                lambda_sigma=lambda_sigma,
+                sample_count=self.config.num_samples,
+                scale=self.config.value_reward_scale,
             )
             value_component += r_value
-            sigma_component += r_sigma
-
-            shaped_reward = r_value + r_sigma
+            shaped_reward = r_value
             if terminated:
                 shaped_reward -= 10.0
             adv_score += shaped_reward
@@ -788,9 +631,6 @@ class AdvSacTrainer:
             protagonist_score=protagonist_score,
             protagonist_success=protagonist_success,
             reward_value_component=value_component,
-            reward_sigma_component=sigma_component,
-            lambda_value=lambda_value,
-            lambda_sigma=lambda_sigma,
             last_observation=adversary_terminal_obs,
         )
 
@@ -845,17 +685,6 @@ class AdvSacTrainer:
             f"{phase_prefix}_adv_score_r_v_hat",
             outcome.reward_value_component,
             step=self.total_steps,
-        )
-        self.mlflow_logger.log_metric(
-            f"{phase_prefix}_adv_score_r_sigmaQ",
-            outcome.reward_sigma_component,
-            step=self.total_steps,
-        )
-        self.mlflow_logger.log_metric(
-            "lambda_v_eff", outcome.lambda_value, step=self.total_steps
-        )
-        self.mlflow_logger.log_metric(
-            "lambda_sigma_eff", outcome.lambda_sigma, step=self.total_steps
         )
 
         if phase_prefix == "adv_train":
