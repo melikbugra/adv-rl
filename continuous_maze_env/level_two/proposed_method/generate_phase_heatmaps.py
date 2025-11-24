@@ -19,7 +19,7 @@ CANVAS_HEIGHT = WINDOW_HEIGHT
 # Rendering constants
 BATCH_SIZE = 50
 POINT_DIAMETER = 5
-BORDER_THICKNESS = 1
+BORDER_THICKNESS = 0.5
 FAIL_COLOR = (255, 0, 0)  # red when protagonist fails
 SUCCESS_COLOR = (0, 102, 255)  # blue when protagonist succeeds
 BORDER_COLOR = (255, 255, 255)

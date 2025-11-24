@@ -3,7 +3,7 @@
 **/*potential_field_*
 **/*value_map_*
 **/*models*
-
+**/*simulate_lambda_schedule*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
