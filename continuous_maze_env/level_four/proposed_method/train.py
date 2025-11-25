@@ -331,7 +331,7 @@ class TrainingConfig:
     protagonist_episodes_per_iter: int = 10
     learning_rate: float = 3e-4
     network_arch: Tuple[int, int] = (256, 256)
-    device: str = "cuda:1"
+    device: str = "cuda:0"
     batch_size: int = 256
     network_type: str = "mlp"
     env_seed: int | None = None
