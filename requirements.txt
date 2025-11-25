@@ -11,7 +11,7 @@ click==8.3.1 ; python_version >= "3.11" and python_version < "4.0"
 cloudpickle==3.1.2 ; python_version >= "3.11" and python_version < "4.0"
 colorama==0.4.6 ; python_version >= "3.11" and python_version < "4.0" and (sys_platform == "win32" or platform_system == "Windows")
 colorlog==6.10.1 ; python_version >= "3.11" and python_version < "4.0"
-continuous-maze-env @ git+https://github.com/melikbugra/continuous-maze-env.git@46610aef04fd2fdceef9aa427cbe03189ff9319d ; python_version >= "3.11" and python_version < "4.0"
+continuous-maze-env @ git+https://github.com/melikbugra/continuous-maze-env.git@f632218b9fae79fea61c1191ce27ae8faf7553c4 ; python_version >= "3.11" and python_version < "4.0"
 contourpy==1.3.3 ; python_version >= "3.11" and python_version < "4.0"
 cycler==0.12.1 ; python_version >= "3.11" and python_version < "4.0"
 databricks-sdk==0.73.0 ; python_version >= "3.11" and python_version < "4.0"

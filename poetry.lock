@@ -453,7 +453,7 @@ pyglet = "2.0.18"
 type = "git"
 url = "https://github.com/melikbugra/continuous-maze-env.git"
 reference = "HEAD"
-resolved_reference = "46610aef04fd2fdceef9aa427cbe03189ff9319d"
+resolved_reference = "f632218b9fae79fea61c1191ce27ae8faf7553c4"
 
 [[package]]
 name = "contourpy"
