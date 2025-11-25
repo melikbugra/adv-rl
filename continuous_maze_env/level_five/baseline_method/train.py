@@ -384,7 +384,7 @@ class AdvSacTrainer:
                 * self.config.target_entropy_scale,
             },
             env=self.env,
-            algo_name="Adv-SAC (Q-ensemble reward)",
+            algo_name="Adv-SAC (Baseline)",
             run_name_prefix=self.config.level_name,
         )
 

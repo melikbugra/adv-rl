@@ -232,7 +232,7 @@ def adversary_reward_from_value(
     ).unsqueeze(0)
 
     v_hat = estimate_protagonist_soft_value(
-        state_tensor, protagonist, sample_count=sample_count, use_target=True
+        state_tensor, protagonist, sample_count=sample_count, use_target=False
     )
     protagonist_value = float(v_hat.item())
     return -scale * protagonist_value
@@ -384,7 +384,7 @@ class AdvSacTrainer:
                 * self.config.target_entropy_scale,
             },
             env=self.env,
-            algo_name="Adv-SAC (Q-ensemble reward)",
+            algo_name="Adv-SAC (Baseline)",
             run_name_prefix=self.config.level_name,
         )
 
