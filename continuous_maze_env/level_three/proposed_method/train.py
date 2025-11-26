@@ -342,7 +342,7 @@ class TrainingConfig:
     base_lambda_v: float = 0.7
     base_lambda_sigma: float = 0.25
     value_ramp_fraction: float = 0.25
-    sigma_warmup_fraction: float = 0.25
+    sigma_warmup_fraction: float = 0.50
     sigma_decay_fraction: float = 0.25
     sigma_min_fraction: float = 0.0
     csv_path: str = "heatmap/adv_prt_endpoints.csv"
