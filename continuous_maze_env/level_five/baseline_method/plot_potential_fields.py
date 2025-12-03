@@ -125,17 +125,49 @@ def make_agent(env, device: str) -> SAC:
     return agent
 
 
-def select_action(agent: SAC, state_np: np.ndarray) -> Tuple[float, float]:
+def select_action_with_confidence(
+    agent: SAC, state_np: np.ndarray
+) -> Tuple[Tuple[float, float], float]:
+    """Select greedy action and return confidence based on policy std.
+
+    Returns
+    -------
+    tuple
+        ((action_x, action_y), confidence) where confidence is in [0, 1].
+        Lower std means higher confidence.
+    """
     state_tensor = agent.state_to_torch(state_np)
     with torch.no_grad():
-        action = agent.agent.select_greedy_action(state_tensor, eval=True)
+        outs, *_ = agent.agent.net(state=state_tensor, actor_pass=True)
+
     if agent.agent.action_type == "discrete":
+        action = agent.agent.select_greedy_action(state_tensor, eval=True)
         arr = np.array([action.item()], dtype=np.float32)
+        confidence = 1.0  # Discrete actions don't have std
     else:
+        mean, std = outs[0]
+        # Greedy action is tanh(mean) * max_action
+        action = torch.tanh(mean) * agent.agent.max_action
         arr = action.detach().cpu().numpy().reshape(-1)
+
+        # Compute confidence from std: lower std = higher confidence
+        # std is typically in range [exp(-20), exp(2)] ≈ [2e-9, 7.4]
+        # We use mean std across action dimensions
+        mean_std = std.mean().item()
+        # Map std to confidence: std=0 -> conf=1, std=2 -> conf~0.1
+        # Using exponential decay: confidence = exp(-std * scale)
+        confidence = float(np.exp(-mean_std * 1.5))
+        confidence = max(0.15, min(1.0, confidence))  # Clamp to [0.15, 1.0]
+
     if arr.size == 1:
-        return float(arr[0]), 0.0
-    return float(arr[0]), float(arr[1])
+        return (float(arr[0]), 0.0), confidence
+    return (float(arr[0]), float(arr[1])), confidence
+
+
+def select_action(agent: SAC, state_np: np.ndarray) -> Tuple[float, float]:
+    """Legacy wrapper for backward compatibility."""
+    action, _ = select_action_with_confidence(agent, state_np)
+    return action
 
 
 def draw_arrow(
@@ -144,6 +176,7 @@ def draw_arrow(
     vector: Tuple[float, float],
     color: Tuple[int, int, int, int],
     scale: float,
+    line_width: int = 2,
 ) -> None:
     ox, oy = origin
     vx, vy = vector
@@ -154,9 +187,11 @@ def draw_arrow(
     dy = -(vy / norm) * scale
     ex = ox + dx
     ey = oy + dy
-    draw.line((ox, oy, ex, ey), fill=color, width=2)
-    head_len = scale * 0.35
-    head_w = scale * 0.25
+    draw.line((ox, oy, ex, ey), fill=color, width=line_width)
+    # Scale head size proportionally to line width
+    width_scale = line_width / 2.0
+    head_len = scale * 0.35 * width_scale
+    head_w = scale * 0.25 * width_scale
     back_norm = np.hypot(dx, dy) or 1.0
     bx = ex - dx / back_norm * head_len
     by = ey - dy / back_norm * head_len
@@ -221,14 +256,18 @@ def main() -> None:
                 if not playable_mask[py, px]:
                     continue
                 state = np.array([x_norm, y_norm], dtype=np.float32)
-                adv_vec = select_action(adv_agent, state)
-                prt_vec = select_action(prt_agent, state)
+                adv_vec, adv_conf = select_action_with_confidence(adv_agent, state)
+                prt_vec, prt_conf = select_action_with_confidence(prt_agent, state)
+                # Map confidence to line width: [0.15, 1.0] -> [1, 5]
+                adv_width = max(1, int(1 + adv_conf * 4))
+                prt_width = max(1, int(1 + prt_conf * 4))
                 draw_arrow(
                     adv_draw,
                     (x_pix, y_pix),
                     adv_vec,
                     (255, 0, 0, 255),
                     args.arrow_scale,
+                    line_width=adv_width,
                 )
                 draw_arrow(
                     prt_draw,
@@ -236,6 +275,7 @@ def main() -> None:
                     prt_vec,
                     (0, 102, 255, 255),
                     args.arrow_scale,
+                    line_width=prt_width,
                 )
 
         adv_label = sanitize_label(adv_path)
