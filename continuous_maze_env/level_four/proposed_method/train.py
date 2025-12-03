@@ -325,8 +325,8 @@ class TrainingConfig:
     """Container for hyper-parameters required by the training loop."""
 
     level_name: str = "level_four"
-    max_steps: int = 100
-    outer_iterations: int = 1006
+    max_steps: int = 200
+    outer_iterations: int = 1506
     adversary_episodes_per_iter: int = 10
     protagonist_episodes_per_iter: int = 10
     learning_rate: float = 3e-4
@@ -339,12 +339,12 @@ class TrainingConfig:
     target_entropy_scale: float = 1.0
     num_q_heads: int = 6
     sigma_samples: int = 8
-    base_lambda_v: float = 0.7
-    base_lambda_sigma: float = 0.25
-    value_ramp_fraction: float = 0.3
-    sigma_warmup_fraction: float = 0.25
-    sigma_decay_fraction: float = 0.8
-    sigma_min_fraction: float = 0.1
+    base_lambda_v: float = 1.05
+    base_lambda_sigma: float = 1.6
+    value_ramp_fraction: float = 0.6
+    sigma_warmup_fraction: float = 0.5
+    sigma_decay_fraction: float = 0.35
+    sigma_min_fraction: float = 0.02
     csv_path: str = "heatmap/adv_prt_endpoints.csv"
     reset_csv_on_start: bool = True
     mlflow_tracking_uri: str = "https://mlflow.melikbugraozcelik.com/"

@@ -325,7 +325,7 @@ class TrainingConfig:
     """Container for hyper-parameters required by the training loop."""
 
     level_name: str = "level_two"
-    max_steps: int = 100
+    max_steps: int = 150
     outer_iterations: int = 1006
     adversary_episodes_per_iter: int = 10
     protagonist_episodes_per_iter: int = 10
