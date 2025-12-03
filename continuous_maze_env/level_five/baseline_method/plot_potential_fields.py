@@ -280,8 +280,11 @@ def main() -> None:
 
         adv_label = sanitize_label(adv_path)
         prt_label = sanitize_label(prt_path)
-        adv_out = base_image_path.with_name(f"potential_field_adv_{adv_label}.png")
-        prt_out = base_image_path.with_name(f"potential_field_prt_{prt_label}.png")
+        # Create potential_fields directory if it doesn't exist
+        output_dir = script_dir / "heatmap" / "potential_fields"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        adv_out = output_dir / f"potential_field_adv_{adv_label}.png"
+        prt_out = output_dir / f"potential_field_prt_{prt_label}.png"
         adv_img.save(adv_out)
         prt_img.save(prt_out)
         print(f"Saved adversary potential field to {adv_out}")

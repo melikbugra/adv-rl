@@ -300,7 +300,10 @@ def main() -> None:
         draw_legend(value_map, vmin, vmax, cmap_name="viridis")
 
         prt_label = sanitize_label(prt_path)
-        out_path = base_image_path.with_name(f"value_map_prt_{prt_label}.png")
+        # Create value_map directory if it doesn't exist
+        output_dir = script_dir / "heatmap" / "value_map"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        out_path = output_dir / f"value_map_prt_{prt_label}.png"
         value_map.save(out_path)
         print(f"Saved protagonist value map to {out_path}")
     finally:
