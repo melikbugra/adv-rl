@@ -326,11 +326,11 @@ class TrainingConfig:
 
     level_name: str = "level_three"
     max_steps: int = 400
-    outer_iterations: int = 1006
+    outer_iterations: int = 3006
     adversary_episodes_per_iter: int = 10
     protagonist_episodes_per_iter: int = 10
     learning_rate: float = 3e-4
-    network_arch: Tuple[int, int] = (512, 512)
+    network_arch: Tuple[int, int, int] = (512, 1024, 512)
     device: str = "cuda:1"
     batch_size: int = 256
     network_type: str = "mlp"
@@ -339,12 +339,12 @@ class TrainingConfig:
     target_entropy_scale: float = 1.0
     num_q_heads: int = 6
     sigma_samples: int = 8
-    base_lambda_v: float = 1.05
-    base_lambda_sigma: float = 1.6
-    value_ramp_fraction: float = 0.6
-    sigma_warmup_fraction: float = 0.5
-    sigma_decay_fraction: float = 0.35
-    sigma_min_fraction: float = 0.02
+    base_lambda_v: float = 0.5           
+    base_lambda_sigma: float = 2.5       
+    value_ramp_fraction: float = 0.7  
+    sigma_warmup_fraction: float = 0.7   
+    sigma_decay_fraction: float = 0.15   
+    sigma_min_fraction: float = 0.01 
     csv_path: str = "heatmap/adv_prt_endpoints.csv"
     reset_csv_on_start: bool = True
     mlflow_tracking_uri: str = "https://mlflow.melikbugraozcelik.com/"
