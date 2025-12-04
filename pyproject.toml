@@ -9,7 +9,7 @@ dependencies = [
     "gymnasium[other] (>=1.2.0,<2.0.0)",
     "stable-baselines3 (>=2.7.0,<3.0.0)",
     "continuous-maze-env @ git+https://github.com/melikbugra/continuous-maze-env.git",
-    "rl-baselines @ git+https://github.com/melikbugra/rl-baselines.git",
+    "rl-baselines @ git+https://github.com/melikbugra/rl-baselines.git@feature/her",
     "gymnasium-robotics @ file:///home/melik/Gymnasium-Robotics",
 ]
 

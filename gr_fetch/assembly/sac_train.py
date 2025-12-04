@@ -24,10 +24,10 @@ class RewardScaler(gym.RewardWrapper):
 
 def make_env(max_episode_steps=100, reward_scale=10.0):
     """Create and wrap the environment."""
-    env = gym.make("FetchAssemblyDense-v1", max_episode_steps=max_episode_steps)
-    env = FlattenObservation(env)
+    env = gym.make("FetchAssembly-v1", max_episode_steps=max_episode_steps)
+    # env = FlattenObservation(env)
     # Scale rewards: dense reward is ~[-0.5, 0], scale to ~[-5, 0]
-    env = RewardScaler(env, scale=reward_scale)
+    # env = RewardScaler(env, scale=reward_scale)
     return env
 
 
@@ -44,6 +44,7 @@ if __name__ == "__main__":
 
     model = SAC(
         env=env,
+        experience_replay_type="her",
         time_steps=3_000_000,
         # === Learning ===
         learning_rate=3e-4,
