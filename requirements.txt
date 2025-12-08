@@ -1,4 +1,3 @@
--e file:///home/melik/Gymnasium-Robotics ; python_version >= "3.11" and python_version < "4.0"
 absl-py==2.3.1 ; python_version >= "3.11" and python_version < "4.0"
 alembic==1.17.2 ; python_version >= "3.11" and python_version < "4.0"
 annotated-doc==0.0.4 ; python_version >= "3.11" and python_version < "4.0"

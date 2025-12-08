@@ -1,35 +1,59 @@
+"""
+Evaluation script for FetchAssembly with SAC + HER
+Must match the training configuration from sac_train.py
+"""
+
 import gymnasium_robotics
 import gymnasium as gym
-from gymnasium.wrappers import FlattenObservation
 from rl_baselines.policy_based.sac import SAC
 
-
-class RewardScaler(gym.RewardWrapper):
-    """Scale rewards by a constant factor."""
-
-    def __init__(self, env, scale=10.0):
-        super().__init__(env)
-        self.scale = scale
-
-    def reward(self, reward):
-        return reward * self.scale
+# Register gymnasium-robotics environments
+gym.register_envs(gymnasium_robotics)
 
 
-env = gym.make("FetchAssemblyDense-v1", max_episode_steps=100)
-env = FlattenObservation(env)
-action_dim = env.action_space.shape[0]
-env = RewardScaler(env, scale=10.0)
-eval_env = gym.make("FetchAssemblyDense-v1", max_episode_steps=100, render_mode="human")
-eval_env = FlattenObservation(eval_env)
-eval_env = RewardScaler(eval_env, scale=10.0)
+# =============================================================================
+# CONFIGURATION (must match training)
+# =============================================================================
 
-model = SAC(
-    env=env,
-    eval_env=eval_env,
-    device="cuda:0",
-    env_seed=42,
-)
+ENV_ID = "FetchAssembly-v1"
+MAX_EPISODE_STEPS = 100
+DEVICE = "cuda:0"
+CHECKPOINT = "curriculum_5_assembly"  # or "last"
 
-model.load(folder="models", checkpoint="last")
+# Network architecture (must match training)
+NETWORK_ARCH = [512, 1024, 512]
 
-model.evaluate(episodes=10, eval_env=eval_env, render=True, print_episode_score=True)
+
+def make_env(env_id: str, max_episode_steps: int = 100, render_mode: str = None):
+    """Create environment."""
+    return gym.make(env_id, max_episode_steps=max_episode_steps, render_mode=render_mode)
+
+
+if __name__ == "__main__":
+    # Create environments
+    env = make_env(ENV_ID, MAX_EPISODE_STEPS)
+    eval_env = make_env(ENV_ID, MAX_EPISODE_STEPS, render_mode="human")
+
+    action_dim = env.action_space.shape[0]
+
+    # Create model with same config as training
+    model = SAC(
+        env=env,
+        eval_env=eval_env,
+        experience_replay_type="her",
+        network_type="mlp",
+        network_arch=NETWORK_ARCH,
+        device=DEVICE,
+        env_seed=42,
+        n_sampled_goal=8,
+        goal_selection_strategy="future",
+    )
+
+    # Load trained weights
+    model.load(folder="models", checkpoint=CHECKPOINT)
+
+    # Evaluate
+    model.evaluate(episodes=10, eval_env=eval_env, render=True, print_episode_score=True)
+
+    env.close()
+    eval_env.close()
