@@ -17,8 +17,8 @@ gym.register_envs(gymnasium_robotics)
 
 ENV_ID = "FetchAssembly-v1"
 MAX_EPISODE_STEPS = 100
-DEVICE = "cuda:0"
-CHECKPOINT = "curriculum_5_assembly"  # or "last"
+DEVICE = "cuda:1"
+CHECKPOINT = "best_avg"  # or "last"
 
 # Network architecture (must match training)
 NETWORK_ARCH = [512, 1024, 512]

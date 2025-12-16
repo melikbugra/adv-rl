@@ -17,11 +17,13 @@ gym.register_envs(gymnasium_robotics)
 # =============================================================================
 
 # Görev sıralaması: Kolaydan zora
+# NOT: Önceki eğitimde Push/PickPlace platoya ulaştı, Slide/Assembly öğrenemedi
+# Çözüm: Slide çıkarıldı, daha fazla adım, daha yüksek n_sampled_goal
 CURRICULUM = [
     {
         "env_id": "FetchReach-v4",
         "max_episode_steps": 50,
-        "time_steps": 100_000,  # En kolay görev, hızlı öğrenir
+        "time_steps": 100_000,  # ✅ Bu iyi çalıştı
         "learning_rate": 3e-4,
         "checkpoint": "curriculum_1_reach",
         "description": "Sadece hedefe ulaş (en kolay)",
@@ -29,7 +31,7 @@ CURRICULUM = [
     {
         "env_id": "FetchPush-v4",
         "max_episode_steps": 50,
-        "time_steps": 300_000,
+        "time_steps": 1_000_000,  # 300K → 500K (platoya ulaşmıştı)
         "learning_rate": 3e-4,
         "checkpoint": "curriculum_2_push",
         "description": "Objeyi it",
@@ -37,35 +39,26 @@ CURRICULUM = [
     {
         "env_id": "FetchPickAndPlace-v4",
         "max_episode_steps": 50,
-        "time_steps": 500_000,
+        "time_steps": 1_000_000,  # 500K → 1M (daha fazla süre lazım)
         "learning_rate": 3e-4,
         "checkpoint": "curriculum_3_pickplace",
         "description": "Objeyi al ve bırak",
     },
     {
-        "env_id": "FetchSlide-v4",
+        "env_id": "FetchPegInHolePreHeld-v1",  # Sparse reward + HER
         "max_episode_steps": 50,
-        "time_steps": 1_000_000,
-        "learning_rate": 1e-4,  # Daha zor, daha düşük LR
-        "checkpoint": "curriculum_4_slide",
-        "description": "Objeyi kaydır (uzak hedefe)",
-    },
-    {
-        "env_id": "FetchAssembly-v1",
-        "max_episode_steps": 100,
-        "time_steps": 5_000_000,  # En zor görev
-        "learning_rate": 1e-4,
-        "checkpoint": "curriculum_5_assembly",
+        "time_steps": 5_000_000,  # Daha uzun eğitim
+        "learning_rate": 3e-4,  
+        "checkpoint": "curriculum_4_assembly",
         "description": "Montaj görevi (en zor)",
     },
 ]
 
-# Common settings for all tasks
 COMMON_CONFIG = {
-    "network_arch": [512, 1024, 512],
-    "batch_size": 512,
-    "tau": 0.005,
-    "gamma": 0.98,
+    "network_arch": [512, 1024, 1024, 512],
+    "batch_size": 256,  # Çalışan değer
+    "tau": 0.005,  # Çalışan değer
+    "gamma": 0.99,  # Çalışan değer
     "experience_replay_size": 2_000_000,
     "device": "cuda:1",
     "n_sampled_goal": 8,
@@ -128,7 +121,7 @@ def train_task(
         experience_replay_type="her",
         time_steps=task_config["time_steps"],
         learning_rate=task_config["learning_rate"],
-        learning_starts=1000,
+        learning_starts=5000,  # 1000 → 5000 (daha fazla exploration)
         batch_size=COMMON_CONFIG["batch_size"],
         gradient_steps=COMMON_CONFIG["gradient_steps"],
         network_type="mlp",
@@ -305,7 +298,7 @@ def train_from_scratch(task_index: int = -1):
         plot_train_sores=True,
         writing_period=5_000,
         gradient_clipping_max_norm=1.0,
-        env_seed=42,
+        env_seed=None,
         evaluation=True,
         eval_episodes=10,
         num_q_heads=2,

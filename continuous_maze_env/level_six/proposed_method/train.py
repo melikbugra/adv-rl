@@ -325,12 +325,12 @@ class TrainingConfig:
     """Container for hyper-parameters required by the training loop."""
 
     level_name: str = "level_six"
-    max_steps: int = 200 # 300
-    outer_iterations: int = 2006
+    max_steps: int = 300 
+    outer_iterations: int = 1506 # 2000 fena değildi ama 1000 denemek istiyorum
     adversary_episodes_per_iter: int = 10
     protagonist_episodes_per_iter: int = 10
     learning_rate: float = 3e-4
-    network_arch: Tuple[int, int] = (512, 512)
+    network_arch: Tuple[int, int] = (256, 512, 256)
     device: str = "cuda:1"
     batch_size: int = 256
     network_type: str = "mlp"
@@ -341,7 +341,7 @@ class TrainingConfig:
     sigma_samples: int = 8
     base_lambda_v: float = 1.0
     base_lambda_sigma: float = 0.35
-    value_ramp_fraction: float = 0.3 # 0.2
+    value_ramp_fraction: float = 1.0
     sigma_warmup_fraction: float = 0.5
     sigma_decay_fraction: float = 0.40
     sigma_min_fraction: float = 0.1   

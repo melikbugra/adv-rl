@@ -244,11 +244,11 @@ class TrainingConfig:
 
     level_name: str = "level_six"
     max_steps: int = 100
-    outer_iterations: int = 2006
+    outer_iterations: int = 1506
     adversary_episodes_per_iter: int = 10
     protagonist_episodes_per_iter: int = 10
     learning_rate: float = 3e-4
-    network_arch: Tuple[int, int] = (256, 256)
+    network_arch: Tuple[int, int, int] = (256, 512, 256)
     device: str = "cuda:1"
     batch_size: int = 256
     network_type: str = "mlp"

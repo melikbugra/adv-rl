@@ -326,11 +326,11 @@ class TrainingConfig:
 
     level_name: str = "level_three"
     max_steps: int = 400
-    outer_iterations: int = 3006
+    outer_iterations: int = 2006
     adversary_episodes_per_iter: int = 10
     protagonist_episodes_per_iter: int = 10
     learning_rate: float = 3e-4
-    network_arch: Tuple[int, int, int] = (128, 128)
+    network_arch: Tuple[int, int] = (256, 512, 256)
     device: str = "cuda:1"
     batch_size: int = 256
     network_type: str = "mlp"
@@ -341,10 +341,10 @@ class TrainingConfig:
     sigma_samples: int = 8
     base_lambda_v: float = 1.0
     base_lambda_sigma: float = 0.35
-    value_ramp_fraction: float = 0.4
+    value_ramp_fraction: float = 1.0
     sigma_warmup_fraction: float = 0.5
     sigma_decay_fraction: float = 0.40
-    sigma_min_fraction: float = 0.1
+    sigma_min_fraction: float = 0.1   
     csv_path: str = "heatmap/adv_prt_endpoints.csv"
     reset_csv_on_start: bool = True
     mlflow_tracking_uri: str = "https://mlflow.melikbugraozcelik.com/"
