@@ -326,11 +326,11 @@ class TrainingConfig:
 
     level_name: str = "level_three"
     max_steps: int = 400
-    outer_iterations: int = 2006
+    outer_iterations: int = 3006
     adversary_episodes_per_iter: int = 10
     protagonist_episodes_per_iter: int = 10
     learning_rate: float = 3e-4
-    network_arch: Tuple[int, int] = (256, 512, 256)
+    network_arch: Tuple[int, int, int, int] = (256, 512, 512, 256)
     device: str = "cuda:1"
     batch_size: int = 256
     network_type: str = "mlp"
@@ -340,7 +340,7 @@ class TrainingConfig:
     num_q_heads: int = 6
     sigma_samples: int = 8
     base_lambda_v: float = 1.0
-    base_lambda_sigma: float = 0.35
+    base_lambda_sigma: float = 0.7
     value_ramp_fraction: float = 1.0
     sigma_warmup_fraction: float = 0.5
     sigma_decay_fraction: float = 0.40

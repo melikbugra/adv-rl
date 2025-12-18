@@ -326,7 +326,7 @@ class TrainingConfig:
 
     level_name: str = "level_six"
     max_steps: int = 300 
-    outer_iterations: int = 1506 # 2000 fena değildi ama 1000 denemek istiyorum
+    outer_iterations: int = 2006 
     adversary_episodes_per_iter: int = 10
     protagonist_episodes_per_iter: int = 10
     learning_rate: float = 3e-4

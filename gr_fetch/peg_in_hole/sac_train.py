@@ -45,7 +45,7 @@ CURRICULUM = [
         "description": "Objeyi al ve bırak",
     },
     {
-        "env_id": "FetchPegInHolePreHeld-v1",  # Sparse reward + HER
+        "env_id": "FetchPegInHole-v1",  # Sparse reward + HER
         "max_episode_steps": 100,
         "time_steps": 5_000_000,  # Daha uzun eğitim
         "learning_rate": 3e-4,  
