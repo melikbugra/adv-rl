@@ -1,5 +1,5 @@
 """
-Evaluation script for FetchAssembly with SAC + HER
+Evaluation script for FetchPegInHolePreHeldDense with SAC + HER
 Must match the training configuration from sac_train.py
 """
 
@@ -15,18 +15,17 @@ gym.register_envs(gymnasium_robotics)
 # CONFIGURATION (must match training)
 # =============================================================================
 
-ENV_ID = "FetchAssembly-v1"
+ENV_ID = "FetchPegInHolePreHeldDense-v1"
 MAX_EPISODE_STEPS = 100
-DEVICE = "cuda:1"
-CHECKPOINT = "best_avg"  # or "last"
-
-# Network architecture (must match training)
-NETWORK_ARCH = [512, 1024, 512]
+DEVICE = "cuda:0"
+CHECKPOINT = "last"  # or "last"
 
 
 def make_env(env_id: str, max_episode_steps: int = 100, render_mode: str = None):
     """Create environment."""
-    return gym.make(env_id, max_episode_steps=max_episode_steps, render_mode=render_mode)
+    return gym.make(
+        env_id, max_episode_steps=max_episode_steps, render_mode=render_mode
+    )
 
 
 if __name__ == "__main__":
@@ -42,7 +41,6 @@ if __name__ == "__main__":
         eval_env=eval_env,
         experience_replay_type="her",
         network_type="mlp",
-        network_arch=NETWORK_ARCH,
         device=DEVICE,
         env_seed=42,
         n_sampled_goal=8,
@@ -53,7 +51,9 @@ if __name__ == "__main__":
     model.load(folder="models", checkpoint=CHECKPOINT)
 
     # Evaluate
-    model.evaluate(episodes=10, eval_env=eval_env, render=True, print_episode_score=True)
+    model.evaluate(
+        episodes=10, eval_env=eval_env, render=True, print_episode_score=True
+    )
 
     env.close()
     eval_env.close()
