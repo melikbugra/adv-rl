@@ -8,9 +8,10 @@ requires-python = ">=3.11,<4.0"
 dependencies = [
     "gymnasium[other] (>=1.2.0,<2.0.0)",
     "stable-baselines3 (>=2.7.0,<3.0.0)",
-    "continuous-maze-env @ git+https://github.com/melikbugra/continuous-maze-env.git",
-    "rl-baselines @ git+https://github.com/melikbugra/rl-baselines.git@feature/her",
+    "continuous-maze-env @ file:///home/melik/continuous-maze-env",
+    "rl-baselines @ file:///home/melik/rl-baselines",
     "gymnasium-robotics @ file:///home/melik/Gymnasium-Robotics",
+    "robosuite (>=1.5.2,<2.0.0)",
 ]
 
 
@@ -23,3 +24,5 @@ dev = ["ipykernel (>=6.30.1,<7.0.0)"]
 
 [tool.poetry.dependencies]
 gymnasium-robotics = {develop = true}
+rl-baselines = {develop = true}
+continuous-maze-env = {develop = true}

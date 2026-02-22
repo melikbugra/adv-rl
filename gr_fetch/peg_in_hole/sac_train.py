@@ -60,7 +60,7 @@ COMMON_CONFIG = {
     "tau": 0.005,  # Çalışan değer
     "gamma": 0.99,  # Çalışan değer
     "experience_replay_size": 2_000_000,
-    "device": "cuda:1",
+    "device": "cuda:0",
     "n_sampled_goal": 8,
     "goal_selection_strategy": "future",
     "gradient_steps": 1,
@@ -69,7 +69,7 @@ COMMON_CONFIG = {
 
 def make_env(env_id: str, max_episode_steps: int = 100):
     """Create environment."""
-    return gym.make(env_id, max_episode_steps=max_episode_steps)
+    return gym.make(env_id, max_episode_steps=max_episode_steps, render_mode="human")
 
 
 def get_checkpoint_path(task_config: dict) -> Path:
@@ -136,6 +136,7 @@ def train_task(
         gradient_clipping_max_norm=1.0,
         env_seed=None,
         evaluation=True,
+        render=True,
         eval_episodes=10,
         num_q_heads=2,
         n_sampled_goal=COMMON_CONFIG["n_sampled_goal"],
