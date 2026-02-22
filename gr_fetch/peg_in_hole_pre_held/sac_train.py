@@ -9,6 +9,7 @@ import argparse
 
 import gymnasium as gym
 import gymnasium_robotics
+from gymnasium.wrappers import FlattenObservation
 from rl_baselines.policy_based.sac import SAC
 
 gym.register_envs(gymnasium_robotics)
@@ -22,41 +23,44 @@ MAX_EPISODE_STEPS = 100
 TOTAL_TIMESTEPS = 5_000_000
 NETWORK_ARCH = [512, 512, 512]
 BATCH_SIZE = 256
-LEARNING_RATE = 3e-4
-TAU = 0.005
-GAMMA = 0.99
+LEARNING_RATE = 1e-4
+TAU = 0.002
+GAMMA = 0.95
 REPLAY_SIZE = 2_000_000
 LEARNING_STARTS = 5_000
 GRADIENT_STEPS = 1
-NUM_Q_HEADS = 2
+NUM_Q_HEADS = 5
 N_SAMPLED_GOAL = 8
 GOAL_STRATEGY = "future"
 GRADIENT_CLIPPING = 1.0
 DEVICE = "cuda:0"
-CHECKPOINT_NAME = "direct_peg_in_hole_pre_held_dense"
+CHECKPOINT_NAME = "latest"
 
 
-def make_env(env_id: str, max_episode_steps: int, render_mode: str = None):
-    """Create environment with optional rendering."""
-    return gym.make(
+def make_env(env_id: str, max_episode_steps: int, render_mode: str = None, flatten: bool = False):
+    """Create environment with optional rendering and observation flattening."""
+    env = gym.make(
         env_id, max_episode_steps=max_episode_steps, render_mode=render_mode
     )
+    if flatten:
+        env = FlattenObservation(env)
+    return env
 
 
 def train(timesteps: int, device: str, render_eval: bool):
     """Run SAC + HER training on FetchPegInHolePreHeldDense-v1."""
-    # Training env: no rendering for speed
-    env = make_env(ENV_ID, MAX_EPISODE_STEPS, render_mode=None)
+    # Training env: no rendering for speed, flatten Dict obs for regular ER
+    env = make_env(ENV_ID, MAX_EPISODE_STEPS, render_mode=None, flatten=True)
     # Eval env: optionally render
     eval_render = "human" if render_eval else None
-    eval_env = make_env(ENV_ID, MAX_EPISODE_STEPS, render_mode=eval_render)
+    eval_env = make_env(ENV_ID, MAX_EPISODE_STEPS, render_mode=eval_render, flatten=True)
 
     action_dim = env.action_space.shape[0]
 
     model = SAC(
         env=env,
         eval_env=eval_env,
-        experience_replay_type="her",
+        experience_replay_type="er",
         time_steps=timesteps,
         learning_rate=LEARNING_RATE,
         learning_starts=LEARNING_STARTS,
@@ -72,13 +76,13 @@ def train(timesteps: int, device: str, render_eval: bool):
         plot_train_sores=True,
         writing_period=5_000,
         gradient_clipping_max_norm=GRADIENT_CLIPPING,
-        env_seed=None,
+        env_seed=42,
         evaluation=True,
         eval_episodes=10,
         render=render_eval,
         num_q_heads=NUM_Q_HEADS,
-        n_sampled_goal=N_SAMPLED_GOAL,
-        goal_selection_strategy=GOAL_STRATEGY,
+        # n_sampled_goal=N_SAMPLED_GOAL,
+        # goal_selection_strategy=GOAL_STRATEGY,
         mlflow_tracking_uri="https://mlflow.melikbugraozcelik.com/",
     )
 
